@@ -169,12 +169,24 @@ def generate_speech(preset_name, description, text, temperature, max_tokens, see
         # Extract SNAC tokens
         generated_ids = outputs[0, inputs['input_ids'].shape[1]:].tolist()
         
-        # Find EOS and extract SNAC codes
+        # Find CODE_START and CODE_END positions
+        start_idx = generated_ids.index(CODE_START_TOKEN_ID) if CODE_START_TOKEN_ID in generated_ids else 0
         eos_idx = generated_ids.index(CODE_END_TOKEN_ID) if CODE_END_TOKEN_ID in generated_ids else len(generated_ids)
-        snac_tokens = [t for t in generated_ids[:eos_idx] if SNAC_MIN_ID <= t <= SNAC_MAX_ID]
+        
+        # Extract tokens between start and end markers
+        candidate_tokens = generated_ids[start_idx + 1:eos_idx] if start_idx < eos_idx else generated_ids[:eos_idx]
+        
+        # Build SNAC tokens array, stopping at first invalid token to maintain frame alignment
+        snac_tokens = []
+        for token in candidate_tokens:
+            if SNAC_MIN_ID <= token <= SNAC_MAX_ID:
+                snac_tokens.append(token)
+            else:
+                # Stop processing if we encounter an invalid token to prevent frame misalignment
+                break
         
         if len(snac_tokens) < 7:
-            return None, "Error: Not enough tokens generated. Try different text or increase max_tokens."
+            return None, "Error: Not enough valid tokens generated. Try different text or increase max_tokens."
         
         # Unpack and decode
         levels = unpack_snac_from_7(snac_tokens)
