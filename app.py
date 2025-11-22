@@ -159,7 +159,8 @@ def generate_speech(preset_name, description, text, temperature, max_tokens, see
                 max_new_tokens=max_tokens,
                 min_new_tokens=28,
                 temperature=temperature, 
-                top_p=0.9, 
+                top_p=0.95,  # Increased from 0.9 for better quality
+                top_k=50,  # Added top_k to limit sampling to top 50 tokens
                 repetition_penalty=1.1,
                 do_sample=True,
                 eos_token_id=CODE_END_TOKEN_ID,
@@ -175,6 +176,12 @@ def generate_speech(preset_name, description, text, temperature, max_tokens, see
         
         if len(snac_tokens) < 7:
             return None, "Error: Not enough tokens generated. Try different text or increase max_tokens."
+        
+        # Validate token count is divisible by 7 for proper frame alignment
+        valid_token_count = (len(snac_tokens) // 7) * 7
+        if valid_token_count < len(snac_tokens):
+            print(f"Warning: Trimming {len(snac_tokens) - valid_token_count} tokens for frame alignment")
+            snac_tokens = snac_tokens[:valid_token_count]
         
         # Unpack and decode
         levels = unpack_snac_from_7(snac_tokens)
@@ -263,10 +270,10 @@ with gr.Blocks(title="Maya1 - Open Source Emotional TTS", theme=gr.themes.Soft()
                 temperature_slider = gr.Slider(
                     minimum=0.1,
                     maximum=1.0,
-                    value=0.4,
-                    step=0.1,
+                    value=0.3,
+                    step=0.05,
                     label="Temperature",
-                    info="Lower = more stable, Higher = more creative"
+                    info="Lower = more stable/clear, Higher = more creative/varied (0.2-0.4 recommended)"
                 )
                 
                 max_tokens_slider = gr.Slider(
